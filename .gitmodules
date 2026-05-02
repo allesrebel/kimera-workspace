@@ -1,0 +1,15 @@
+[submodule "src/Kimera-VIO"]
+	path = src/Kimera-VIO
+	url = https://github.com/MIT-SPARK/Kimera-VIO.git
+[submodule "src/Kimera-Semantics"]
+	path = src/Kimera-Semantics
+	url = https://github.com/MIT-SPARK/Kimera-Semantics.git
+[submodule "src/Kimera-RPGO"]
+	path = src/Kimera-RPGO
+	url = https://github.com/MIT-SPARK/Kimera-RPGO.git
+[submodule "src/voxblox"]
+	path = src/voxblox
+	url = https://github.com/ethz-asl/voxblox.git
+[submodule "src/kalibr"]
+	path = src/kalibr
+	url = https://github.com/ethz-asl/kalibr.git
