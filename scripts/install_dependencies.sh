@@ -1,11 +1,21 @@
 #!/bin/bash
 set -e
 
+# Define sudo command if available and needed
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+  if command -v sudo >/dev/null 2>&1; then
+    SUDO="sudo"
+  else
+    echo "Warning: Not root and sudo not found. Installation of system packages may fail."
+  fi
+fi
+
 echo "Installing system dependencies for Kimera..."
 
 # Update and install basic tools
-sudo apt-get update
-sudo apt-get install -y \
+$SUDO apt-get update
+$SUDO apt-get install -y \
     cmake \
     build-essential \
     pkg-config \
@@ -14,7 +24,7 @@ sudo apt-get install -y \
     libjpeg-dev \
     libpng-dev \
     libtiff-dev \
-    libvtk7-dev \
+    libvtk9-dev \
     libgtk-3-dev \
     libatlas-base-dev \
     gfortran \
@@ -48,7 +58,7 @@ cmake .. \
     -DGTSAM_POSE3_EXPMAP=ON \
     -DGTSAM_ROT3_EXPMAP=ON
 make -j$(nproc)
-sudo make install
+$SUDO make install
 cd ../..
 rm -rf gtsam
 
@@ -63,7 +73,7 @@ mkdir -p build
 cd build
 cmake ..
 make -j$(nproc)
-sudo make install
+$SUDO make install
 cd ../..
 rm -rf opengv
 
@@ -78,7 +88,7 @@ mkdir -p build
 cd build
 cmake ..
 make -j$(nproc)
-sudo make install
+$SUDO make install
 cd ../..
 rm -rf DBoW2
 

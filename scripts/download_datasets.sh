@@ -1,6 +1,16 @@
 #!/bin/bash
 set -e
 
+# Define sudo command if available and needed
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+  if command -v sudo >/dev/null 2>&1; then
+    SUDO="sudo"
+  else
+    echo "Warning: Not root and sudo not found."
+  fi
+fi
+
 # Go to the workspace root
 cd "$(dirname "$0")/.."
 
@@ -13,7 +23,7 @@ echo "Downloading datasets for Kimera..."
 # Ensure gdown is installed for Google Drive links
 if ! command -v gdown &> /dev/null; then
     echo "Installing gdown..."
-    pip3 install gdown
+    $SUDO pip3 install gdown || pip3 install --user gdown
 fi
 
 # 1. EuRoC MAV Dataset (V1_01_easy)
@@ -30,10 +40,8 @@ fi
 
 # 3. uHumans Dataset (Sample)
 echo "Downloading uHumans (uHumans_01)..."
-# Using the IDs found in official pages if available, or searching for them
-# For uHumans, I'll download uHumans_01.bag if I can find the ID
-# ID for uHumans_01.bag: 1_wA8X9P8p3J0_8r9H9Z2zI9_x_R_R_R (Placeholder, need to verify)
-# Since I don't have the exact ID for uHumans v1, I'll focus on uHumans2 which has better documentation.
+# Since exact IDs are hard to track, we provide placeholders or common IDs
+# For uHumans, the official repo often has download links in READMEs.
 
 # 4. uHumans2 Dataset (Sample: Office)
 echo "Downloading uHumans2 (Office)..."
