@@ -28,6 +28,9 @@ add_submodule https://github.com/MIT-SPARK/Kimera-VIO.git src/Kimera-VIO
 add_submodule https://github.com/MIT-SPARK/Kimera-Semantics.git src/Kimera-Semantics
 add_submodule https://github.com/MIT-SPARK/Kimera-RPGO.git src/Kimera-RPGO
 add_submodule https://github.com/ethz-asl/voxblox.git src/voxblox
+# kalibr provides kalibr_bagcreater, used by scripts/download_datasets.sh
+# to convert the EuRoC ASL-format zips into ROS bags.
+add_submodule https://github.com/ethz-asl/kalibr.git src/kalibr
 
 # Initialize and update submodules recursively
 echo "Updating submodules..."
