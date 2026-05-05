@@ -13,3 +13,6 @@
 [submodule "src/kalibr"]
 	path = src/kalibr
 	url = https://github.com/ethz-asl/kalibr.git
+[submodule "src/Kimera-VIO-ROS"]
+	path = src/Kimera-VIO-ROS
+	url = https://github.com/MIT-SPARK/Kimera-VIO-ROS.git
