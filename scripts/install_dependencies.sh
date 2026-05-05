@@ -50,18 +50,24 @@ mkdir -p "$LOG_DIR"
 
 build_gtsam() {
     cd /tmp
+    # Pin GTSAM 4.2 to match Kimera-VIO/Dockerfile_20_04 (upstream's known-good).
     if [ ! -d "gtsam" ]; then
-        git clone --depth 1 --branch 4.1.1 https://github.com/borglab/gtsam.git
+        git clone --depth 1 --branch 4.2 https://github.com/borglab/gtsam.git
     fi
     cd gtsam
     mkdir -p build && cd build
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
+        -DGTSAM_USE_SYSTEM_EIGEN=ON \
+        -DGTSAM_USE_SYSTEM_METIS=ON \
+        -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF \
         -DGTSAM_BUILD_WITH_TBB=ON \
+        -DGTSAM_BUILD_UNSTABLE=ON \
         -DGTSAM_BUILD_TESTS=OFF \
-        -DGTSAM_BUILD_EXAMPLES=OFF \
+        -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
         -DGTSAM_POSE3_EXPMAP=ON \
-        -DGTSAM_ROT3_EXPMAP=ON
+        -DGTSAM_ROT3_EXPMAP=ON \
+        -DGTSAM_TANGENT_PREINTEGRATION=OFF
     make -j"$(nproc)"
     $SUDO make install
 }

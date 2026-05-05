@@ -21,15 +21,21 @@ attributable to a specific layer.
 - ≥ 60 GB free disk (deps ~5 GB, EuRoC zips ~29 GB, extracted ~29 GB, build ~5 GB)
 - ≥ 16 GB RAM for `make -j$(nproc)`
 
-**Known incompatibilities on Ubuntu 22.04** (observed in this session):
-1. Eigen 3.4 + GCC 11 strict ADL: `unsupported/Eigen/SpecialFunctions` fails with
-   `pchebevl`/`pcmp_le` not found. Workaround: `-fpermissive` or pin Eigen 3.3.
-2. `cv::viz::Viz3d` not declared: `opencv_viz` is not built in
-   `libopencv-contrib-dev` 4.5.4 on 22.04. Either build OpenCV from source with
-   VTK + `-DBUILD_opencv_viz=ON`, or stub out the `MeshOptimization` /
-   `RgbdCamera` viz code.
+**Ubuntu 22.04 status (resolved in this workspace):**
+1. Eigen 3.4 + GCC 11 ADL errors in `unsupported/Eigen/SpecialFunctions` —
+   bypassed by pinning **GTSAM 4.2** (matches upstream `Dockerfile_20_04`)
+   instead of 4.1.1. The 4.2 headers do not pull the broken
+   `unsupported/Eigen/SpecialFunctions` import path.
+2. `cv::viz::Viz3d` not declared — fixed by an explicit
+   `#include <opencv2/viz.hpp>` in 7 Kimera-VIO files. The patches live on the
+   submodule branch `local/ubuntu22-fixes`; `opencv_viz` is shipped on 22.04,
+   only the include was missing.
 
-The plan below assumes 20.04. Steps for 22.04 require the workarounds above.
+With these in place a clean Kimera-VIO build (library + `stereoVIOEuroc`)
+succeeds natively on Ubuntu 22.04 with `-DKIMERA_BUILD_TESTS=OFF`. The unit
+tests (`testKimeraVIO`) still fail for unrelated upstream code rot
+(`reference to 'Tracker' is ambiguous`, missing `tracker_` field) — out of
+scope for this plan.
 
 ---
 
@@ -100,14 +106,38 @@ runs without error on `examples/example_1d.g2o`.
 
 ### 3b. Kimera-VIO (plain CMake, depends on RPGO + GTSAM + OpenGV + DBoW2 + OpenCV-viz)
 ```bash
-cmake -S src/Kimera-VIO -B src/Kimera-VIO/build -DCMAKE_BUILD_TYPE=Release
+cmake -S src/Kimera-VIO -B src/Kimera-VIO/build \
+    -DCMAKE_BUILD_TYPE=Release -DKIMERA_BUILD_TESTS=OFF
 cmake --build src/Kimera-VIO/build -j$(nproc)
 ```
-**Pass:** binaries `build/stereoVIOEuroc`, `build/stereoVIOEurocCsv` produced;
-`ctest` from build dir reports all unit tests passing.
+**Pass:** `build/libkimera_vio.so` + `build/stereoVIOEuroc` produced.
 
-**Status in this session:** failed on Ubuntu 22.04 — see incompatibilities
-above.
+**Verified in this session on Ubuntu 22.04** with GTSAM 4.2 and the
+`local/ubuntu22-fixes` submodule branch.
+
+### 3b1. Kimera-VIO smoke run on the bundled MicroEuroc dataset
+
+No 29 GB download required — Kimera-VIO ships ~95 frames of EuRoC under
+`tests/data/MicroEurocDataset/`.
+
+```bash
+cd src/Kimera-VIO
+xvfb-run -a bash scripts/stereoVIOEuroc.bash \
+    -p "$(pwd)/tests/data/MicroEurocDataset" -log
+```
+
+`xvfb-run` is required because Kimera-VIO's 3D visualizer initializes a VTK
+window unconditionally and aborts on `bad X server connection` in headless
+environments.
+
+**Pass:**
+- Process logs `Pipeline successful? Yes!` and exits 0.
+- `output_logs/traj_vio.csv` exists, has the 17-column TUM-style header
+  (`#timestamp,x,y,z,qw,qx,qy,qz,vx,vy,vz,bgx,bgy,bgz,bax,bay,baz`), and at
+  least one data row beyond the header.
+- `output_logs/output_frontend_stats.csv` is non-empty.
+
+**Verified in this session.**
 
 ### 3c. voxblox (catkin) and Kimera-Semantics (catkin)
 Requires a catkin workspace and ROS Noetic. From the workspace root:
