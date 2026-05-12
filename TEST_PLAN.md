@@ -17,7 +17,12 @@ attributable to a specific layer.
 
 ## Host requirements (known good)
 
-- Ubuntu 20.04 with ROS Noetic (the upstream-supported configuration)
+- Ubuntu 20.04 with ROS Noetic (upstream-supported), **or** Ubuntu 22.04 with
+  the RoboStack conda env in `scripts/kimera_ros.env.yaml` (verified end-to-end
+  on this host).
+- For the 22.04 path: `micromamba` (installed automatically by
+  `scripts/setup_ros_env.sh`) and ≥ 6 GB free under `$HOME` for the
+  `kimera_ros` env at `$MAMBA_ROOT_PREFIX/envs/kimera_ros`.
 - ≥ 60 GB free disk (deps ~5 GB, EuRoC zips ~29 GB, extracted ~29 GB, build ~5 GB)
 - ≥ 16 GB RAM for `make -j$(nproc)`
 
@@ -139,20 +144,75 @@ environments.
 
 **Verified in this session.**
 
-### 3c. voxblox (catkin) and Kimera-Semantics (catkin)
-Requires a catkin workspace and ROS Noetic. From the workspace root:
+### 3c. voxblox + Kimera-Semantics (catkin, RoboStack env)
+Prereq: `scripts/setup_ros_env.sh` has run and the `kimera_ros` env is
+active (`$ROS_DISTRO == noetic`, `$CONDA_PREFIX` points at the env).
 ```bash
-source /opt/ros/noetic/setup.bash
-catkin build voxblox_ros kimera_semantics_ros
+./scripts/setup_workspace.sh                    # vcs imports helper packages
+KIMERA_WORKSPACE_SKIP_VOXBLOX_TESTS=1 ./scripts/build_catkin.sh
 ```
-**Pass:** `devel/lib/voxblox_ros/voxblox_node`,
-`devel/lib/kimera_semantics_ros/kimera_semantics_node` exist.
+**Pass:**
+- `catkin build` exits 0 with `voxblox`, `voxblox_ros`, `voxblox_msgs`,
+  `voxblox_rviz_plugin`, `kimera_semantics`, `kimera_semantics_ros` all in
+  the "Finished" summary.
+- `devel/lib/voxblox_ros/{tsdf_server,esdf_server,intensity_server}`
+  exist.
+- `devel/lib/kimera_semantics_ros/{kimera_semantics_node,kimera_semantics_rosbag}`
+  exist.
+
+**Verified in this session on Ubuntu 22.04** via the RoboStack env with
+local patches to `src/voxblox` and `src/Kimera-Semantics` on the
+`local/ubuntu22-robostack-fixes` branches of each submodule. See
+[`docs/patches.md`](docs/patches.md) for the patch rationale (conda-forge
+glog 0.7 export-macro guard, abseil 20240116 needing C++17, gflags
+namespace, glog-link for executables).
 
 ### 3d. kalibr (catkin) — needed only for `.bag` conversion
 ```bash
-catkin build kalibr
+./scripts/build_catkin.sh   # picks up kalibr along with the other packages
+source devel/setup.bash
 rosrun kalibr kalibr_bagcreater --help
 ```
+**Pass:** `kalibr_bagcreater --help` prints usage with no Python import
+errors.
+
+### 4d. Kimera-Semantics demo bag → semantic mesh
+Smallest end-to-end path through the project's claimed outputs. Uses the
+demo bag fetched by `scripts/download_datasets.sh` (gdown,
+`1SG8cfJ6JEfY2PGXcxDPAMYzCcGBEh4Qq`, ~1.9 GB).
+
+```bash
+source devel/setup.bash
+nohup roscore > /tmp/roscore.log 2>&1 &
+sleep 5
+roslaunch kimera_semantics_ros kimera_semantics.launch \
+    play_bag:=true \
+    bag_file:=$(pwd)/datasets/kimera_semantics_demo.bag \
+    metric_semantic_reconstruction:=true \
+    run_stereo_dense:=false &
+# Wait for "Done." in the launch's stderr (rosbag play finishes), then:
+rosservice call /kimera_semantics_node/generate_mesh "{}"
+```
+
+**Pass:**
+- `src/Kimera-Semantics/kimera_semantics_ros/mesh_results/tesse_*.ply`
+  exists, > 0 bytes.
+- Header reports a non-trivial vertex/face count:
+  ```bash
+  head -c 1024 src/Kimera-Semantics/kimera_semantics_ros/mesh_results/tesse_*.ply \
+      | grep -E "element vertex|element face"
+  # element vertex 262176
+  # element face   304672
+  ```
+- The PLY header contains `property uchar red/green/blue/alpha` — per-vertex
+  semantic colors are populated.
+- The launch's stdout reports many `Integrating a pointcloud with N points`
+  log lines (depth_image_proc nodelet must have started — requires the
+  conda env's `libopencv_*.so.410` symlinks to OpenCV 4.9 to be in place,
+  applied by `scripts/setup_ros_env.sh`).
+
+**Verified in this session.** Produced a 24 MB mesh
+(262 176 vertices, 304 672 faces, RGBA semantic colors) from the demo bag.
 
 ## Stage 4 — Functional tests per component
 

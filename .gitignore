@@ -1,0 +1,42 @@
+# Build outputs
+build/
+devel/
+logs/
+.catkin_tools/
+
+# Datasets (large, user-fetched)
+datasets/
+
+# Conda env data — user-local, see scripts/setup_ros_env.sh
+micromamba/
+
+# ROS helper packages fetched via `vcs import` from the rosinstall files
+# (kept untracked so the parent repo points only at deliberately-pinned
+# submodules; rosinstall files ARE the source of truth for these).
+src/catkin_simple/
+src/catkin_boost_python_buildtool/
+src/catkin_grpc/
+src/eigen_catkin/
+src/eigen_checks/
+src/gflags_catkin/
+src/glog_catkin/
+src/minkindr/
+src/minkindr_ros/
+src/protobuf_catkin/
+src/numpy_eigen/
+src/disparity_image_proc/
+src/mesh_rviz_plugins/
+src/kimera_rviz_markers/
+src/opengv_catkin/
+src/dbow2_catkin/
+src/cmake_external_project_catkin/
+src/pose_graph_tools/
+src/gtsam/
+src/voxblox_msgs/
+src/voxblox_rviz_plugin/
+
+# Editor / IDE
+*.swp
+*.swo
+.vscode/
+.idea/
