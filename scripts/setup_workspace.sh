@@ -53,7 +53,7 @@ apply_patches_for_submodule() {
     local patchdir="${REPO_ROOT}/patches/${subdir}"
     [ -d "${patchdir}" ] || return 0
     local sub_path="${REPO_ROOT}/src/${subdir}"
-    [ -d "${sub_path}/.git" ] || return 0
+    [ -e "${sub_path}/.git" ] || return 0
 
     # Detect already-applied: HEAD's tree should differ from the recorded
     # gitlink if patches are already applied. We use a marker file instead.
@@ -76,6 +76,7 @@ apply_patches_for_submodule Kimera-VIO
 apply_patches_for_submodule Kimera-VIO-ROS
 apply_patches_for_submodule voxblox
 apply_patches_for_submodule Kimera-Semantics
+apply_patches_for_submodule kalibr
 
 # Fetch the ETHZ-ASL / MIT-SPARK helper catkin packages enumerated in the
 # upstream rosinstall files (catkin_simple, eigen_catkin, glog_catkin,

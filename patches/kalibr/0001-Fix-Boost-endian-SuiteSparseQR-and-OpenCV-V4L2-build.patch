@@ -1,0 +1,103 @@
+From ac111eff631d52a405a12da2b221b34c13050390 Mon Sep 17 00:00:00 2001
+From: Rebel <allesrebel@yahoo.com>
+Date: Sat, 16 May 2026 02:10:48 +0000
+Subject: [PATCH] Fix Boost endian, SuiteSparseQR, and OpenCV/V4L2 builds for
+ Ubuntu 22.04
+
+---
+ .../sm_boost/include/boost/portable_binary_archive.hpp     | 7 ++++++-
+ Schweizer-Messer/sm_boost/src/portable_binary_oarchive.cpp | 7 ++++++-
+ aslam_offline_calibration/ethz_apriltag2/CMakeLists.txt    | 6 +++---
+ .../include/aslam/backend/implementation/Cholmod.hpp       | 2 +-
+ .../include/sparse_block_matrix/sparse_helper.h            | 2 +-
+ 5 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/Schweizer-Messer/sm_boost/include/boost/portable_binary_archive.hpp b/Schweizer-Messer/sm_boost/include/boost/portable_binary_archive.hpp
+index 4efa42c..f7a7f94 100755
+--- a/Schweizer-Messer/sm_boost/include/boost/portable_binary_archive.hpp
++++ b/Schweizer-Messer/sm_boost/include/boost/portable_binary_archive.hpp
+@@ -28,7 +28,12 @@
+ #endif
+ 
+ #include <boost/archive/basic_archive.hpp>
+-#include <boost/detail/endian.hpp>
++#include <boost/predef/other/endian.h>
++#if BOOST_ENDIAN_BIG_BYTE
++#define BOOST_BIG_ENDIAN
++#else
++#define BOOST_LITTLE_ENDIAN
++#endif
+ 
+ 
+ namespace boost {
+diff --git a/Schweizer-Messer/sm_boost/src/portable_binary_oarchive.cpp b/Schweizer-Messer/sm_boost/src/portable_binary_oarchive.cpp
+index afca220..5c58445 100755
+--- a/Schweizer-Messer/sm_boost/src/portable_binary_oarchive.cpp
++++ b/Schweizer-Messer/sm_boost/src/portable_binary_oarchive.cpp
+@@ -9,7 +9,12 @@
+ //  See http://www.boost.org for updates, documentation, and revision history.
+ 
+ #include <ostream>
+-#include <boost/detail/endian.hpp>
++#include <boost/predef/other/endian.h>
++#if BOOST_ENDIAN_BIG_BYTE
++#define BOOST_BIG_ENDIAN
++#else
++#define BOOST_LITTLE_ENDIAN
++#endif
+ #include <boost/portable_binary_oarchive.hpp>
+ 
+ namespace boost {
+diff --git a/aslam_offline_calibration/ethz_apriltag2/CMakeLists.txt b/aslam_offline_calibration/ethz_apriltag2/CMakeLists.txt
+index c92a9b4..559a160 100644
+--- a/aslam_offline_calibration/ethz_apriltag2/CMakeLists.txt
++++ b/aslam_offline_calibration/ethz_apriltag2/CMakeLists.txt
+@@ -12,7 +12,7 @@ catkin_package(
+   LIBRARIES ${PROJECT_NAME}
+ )
+ 
+-include_directories(include ${EIGEN3_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
++include_directories(include /usr/include ${EIGEN3_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
+ 
+ #library
+ file(GLOB SOURCE_FILES "src/*.cc")
+@@ -21,8 +21,8 @@ target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${catkin_LIBRARIES})
+ 
+ #demo
+ if(NOT APPLE)
+-  add_executable(apriltags_demo src/example/apriltags_demo.cpp src/example/Serial.cpp)
+-  target_link_libraries(apriltags_demo ${PROJECT_NAME} v4l2)
++#  add_executable(apriltags_demo src/example/apriltags_demo.cpp src/example/Serial.cpp)
++#  target_link_libraries(apriltags_demo ${PROJECT_NAME} v4l2)
+ endif()
+ 
+ ##################
+diff --git a/aslam_optimizer/aslam_backend/include/aslam/backend/implementation/Cholmod.hpp b/aslam_optimizer/aslam_backend/include/aslam/backend/implementation/Cholmod.hpp
+index 6c7186a..af152d9 100644
+--- a/aslam_optimizer/aslam_backend/include/aslam/backend/implementation/Cholmod.hpp
++++ b/aslam_optimizer/aslam_backend/include/aslam/backend/implementation/Cholmod.hpp
+@@ -445,7 +445,7 @@ namespace aslam {
+     template<typename I>
+     void Cholmod<I>::getR(cholmod_sparse* A, cholmod_sparse** R) {
+       cholmod_sparse* qrJ = cholmod_l_transpose(A, 1, &_cholmod);
+-      SuiteSparseQR<double>(SPQR_ORDERING_FIXED, SPQR_NO_TOL, qrJ->ncol, 0,
++      SuiteSparseQR<double, I>(SPQR_ORDERING_FIXED, SPQR_NO_TOL, qrJ->ncol, 0,
+         qrJ, NULL, NULL, NULL, NULL, R, NULL, NULL, NULL, NULL, &_cholmod);
+       SM_ASSERT_EQ(Exception, _cholmod.status, CHOLMOD_OK,
+         "QR factorization failed");
+diff --git a/aslam_optimizer/sparse_block_matrix/include/sparse_block_matrix/sparse_helper.h b/aslam_optimizer/sparse_block_matrix/include/sparse_block_matrix/sparse_helper.h
+index 0a6a87c..8163515 100755
+--- a/aslam_optimizer/sparse_block_matrix/include/sparse_block_matrix/sparse_helper.h
++++ b/aslam_optimizer/sparse_block_matrix/include/sparse_block_matrix/sparse_helper.h
+@@ -75,7 +75,7 @@ namespace {
+   template<>
+   struct IntType< long >
+   {
+-      static const int intType = CHOLMOD_INTLONG;
++      static const int intType = CHOLMOD_LONG;
+   };
+   template<>
+   struct IntType< int >
+-- 
+2.34.1
+
