@@ -1,0 +1,60 @@
+From 9e508282c842f96d215d44c13717e3657b4af641 Mon Sep 17 00:00:00 2001
+From: Rebel <allesrebel@yahoo.com>
+Date: Sat, 16 May 2026 01:36:08 +0000
+Subject: [PATCH 4/4] Disable Pangolin, add explicit includes, autoInit=1 for
+ ROS path
+
+- CMakeLists.txt: force Pangolin_FOUND=FALSE. Equivalent to passing
+  -DCMAKE_DISABLE_FIND_PACKAGE_Pangolin=ON; pin it in source so callers
+  that don't pass the flag still build.
+- include/kimera-vio/utils/UtilsNumerical.h: explicit <vector> and
+  <cstdint> includes (GCC 12 + glibc 2.35 stopped pulling these
+  transitively).
+- params/Euroc/BackendParams.yaml: autoInitialize 0 -> 1. The Kimera-VIO-ROS
+  demo path runs without a ground-truth odometry topic by default; with
+  autoInitialize=0 the data provider hard-checks for one and aborts.
+  Native stereoVIOEuroc is unaffected (uses its own initialization).
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c87aec04..0aafeaa9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -32,7 +32,8 @@ find_package(OpenCV REQUIRED)
+ find_package(DBoW2 REQUIRED)
+ find_package(KimeraRPGO REQUIRED)
+ # Pangolin is optional
+-find_package(Pangolin QUIET)
++# find_package(Pangolin QUIET)
++set(Pangolin_FOUND FALSE)
+ 
+ include(VerifyGtsamConfig)
+ option(KIMERA_VERIFY_GTSAM_CONFIG "Check that GTSAM was compiled with the right options" ON)
+diff --git a/include/kimera-vio/utils/UtilsNumerical.h b/include/kimera-vio/utils/UtilsNumerical.h
+index 47fb8c9e..8a50eab3 100644
+--- a/include/kimera-vio/utils/UtilsNumerical.h
++++ b/include/kimera-vio/utils/UtilsNumerical.h
+@@ -16,6 +16,8 @@
+ 
+ #include <algorithm>
+ #include <iostream>
++#include <vector>
++#include <cstdint>
+ 
+ namespace VIO {
+ 
+diff --git a/params/Euroc/BackendParams.yaml b/params/Euroc/BackendParams.yaml
+index f2040bf9..a27c492e 100644
+--- a/params/Euroc/BackendParams.yaml
++++ b/params/Euroc/BackendParams.yaml
+@@ -4,7 +4,7 @@
+ backend_modality: 0
+ 
+ #INITIALIZATION PARAMETERS
+-autoInitialize: 0
++autoInitialize: 1
+ roundOnAutoInitialize: 0
+ initialPositionSigma: 1e-05
+ initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI
+-- 
+2.34.1
+

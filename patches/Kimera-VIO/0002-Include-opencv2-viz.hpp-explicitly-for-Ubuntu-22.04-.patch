@@ -1,0 +1,75 @@
+From 93b26185b0cb6ae4644e2b2fce2c63b8c5efa2f1 Mon Sep 17 00:00:00 2001
+From: Rebel <allesrebel@yahoo.com>
+Date: Tue, 5 May 2026 13:35:57 +0000
+Subject: [PATCH 2/4] Include opencv2/viz.hpp explicitly for Ubuntu 22.04
+ builds
+
+OpenCV 4.5.4 on Ubuntu 22.04 does not have <opencv2/opencv.hpp>
+transitively pull <opencv2/viz.hpp>, which causes 'cv::viz::Viz3d
+does not name a type' (and similar) when building these files
+under GCC 11. Add the include explicitly. The opencv_viz library
+is still shipped (libopencv_viz.so), so linking is unaffected.
+
+diff --git a/include/kimera-vio/mesh/MeshOptimization.h b/include/kimera-vio/mesh/MeshOptimization.h
+index fa1da651..7d73d93e 100644
+--- a/include/kimera-vio/mesh/MeshOptimization.h
++++ b/include/kimera-vio/mesh/MeshOptimization.h
+@@ -21,6 +21,7 @@
+ #include <Eigen/Core>
+ 
+ #include <opencv2/opencv.hpp>
++#include <opencv2/viz.hpp>
+ 
+ #include <gtsam/geometry/Cal3_S2.h>
+ #include <gtsam/geometry/Pose3.h>
+diff --git a/include/kimera-vio/visualizer/OpenCvDisplay.h b/include/kimera-vio/visualizer/OpenCvDisplay.h
+index f375219f..2b03a468 100644
+--- a/include/kimera-vio/visualizer/OpenCvDisplay.h
++++ b/include/kimera-vio/visualizer/OpenCvDisplay.h
+@@ -15,6 +15,7 @@
+ #pragma once
+ 
+ #include <opencv2/opencv.hpp>
++#include <opencv2/viz.hpp>
+ 
+ #include "kimera-vio/pipeline/Pipeline-definitions.h"  // Needed for shutdown cb
+ #include "kimera-vio/utils/Macros.h"
+diff --git a/include/kimera-vio/visualizer/OpenCvDisplayParams.h b/include/kimera-vio/visualizer/OpenCvDisplayParams.h
+index 7cc154e2..f7d95a6c 100644
+--- a/include/kimera-vio/visualizer/OpenCvDisplayParams.h
++++ b/include/kimera-vio/visualizer/OpenCvDisplayParams.h
+@@ -15,6 +15,7 @@
+ #pragma once
+ 
+ #include <opencv2/opencv.hpp>
++#include <opencv2/viz.hpp>
+ 
+ #include "kimera-vio/pipeline/Pipeline-definitions.h"  // Needed for shutdown cb
+ #include "kimera-vio/utils/Macros.h"
+diff --git a/include/kimera-vio/visualizer/OpenCvVisualizer3D.h b/include/kimera-vio/visualizer/OpenCvVisualizer3D.h
+index 8aa3ff7b..58f2721a 100644
+--- a/include/kimera-vio/visualizer/OpenCvVisualizer3D.h
++++ b/include/kimera-vio/visualizer/OpenCvVisualizer3D.h
+@@ -27,6 +27,7 @@
+ #include <gtsam/nonlinear/LinearContainerFactor.h>
+ 
+ #include <opencv2/opencv.hpp>
++#include <opencv2/viz.hpp>
+ #include <opencv2/viz/types.hpp>
+ 
+ #include "kimera-vio/backend/VioBackend-definitions.h"
+diff --git a/src/frontend/RgbdCamera.cpp b/src/frontend/RgbdCamera.cpp
+index 761567e7..69dcf4f4 100644
+--- a/src/frontend/RgbdCamera.cpp
++++ b/src/frontend/RgbdCamera.cpp
+@@ -14,6 +14,7 @@
+  */
+ 
+ #include "kimera-vio/frontend/RgbdCamera.h"
++#include <opencv2/viz.hpp>
+ 
+ #include "kimera-vio/frontend/Camera.h"
+ 
+-- 
+2.34.1
+

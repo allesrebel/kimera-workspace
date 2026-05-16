@@ -1,0 +1,32 @@
+From 9704e17e5d5bae2706f2b73588b7e183438f9696 Mon Sep 17 00:00:00 2001
+From: Rebel <allesrebel@yahoo.com>
+Date: Tue, 5 May 2026 13:35:26 +0000
+Subject: [PATCH 1/4] Update EuRoC dataset link to ETH Research Collection
+
+The asl.ethz.ch URL retired; the dataset now lives at
+https://www.research-collection.ethz.ch/handle/20.500.11850/690084
+(handle 20.500.11850/690084, item bcaf173e-5dac-484b-bc37-faf97a594f1f).
+
+diff --git a/README.md b/README.md
+index 7720fcd0..05458974 100644
+--- a/README.md
++++ b/README.md
+@@ -105,7 +105,7 @@ To log output, set the `log_output` flag to true. For the script, this is done w
+ 
+ To run the pipeline in sequential mode (one thread only), set `parallel_run`to false. This can be done in the example script with the `-s` argument at commandline.
+ 
+-## i. [Euroc](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) Dataset
++## i. [Euroc](https://www.research-collection.ethz.ch/handle/20.500.11850/690084) Dataset
+ 
+ #### Download Euroc's dataset
+ 
+diff --git a/tests/data/MicroEurocDataset/LICENSE.md b/tests/data/MicroEurocDataset/LICENSE.md
+index b0eb31d9..17c940f2 100644
+--- a/tests/data/MicroEurocDataset/LICENSE.md
++++ b/tests/data/MicroEurocDataset/LICENSE.md
+@@ -1 +1 @@
+-Dataset belongs to ASL/ETHZ: https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets
++Dataset belongs to ASL/ETHZ: https://www.research-collection.ethz.ch/handle/20.500.11850/690084
+-- 
+2.34.1
+

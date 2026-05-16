@@ -1,0 +1,162 @@
+From 350e14af244f38584748b8c5f8a06e5d74a2bdaa Mon Sep 17 00:00:00 2001
+From: Rebel <allesrebel@yahoo.com>
+Date: Tue, 12 May 2026 18:30:32 +0000
+Subject: [PATCH] Patches for conda-forge / RoboStack build on Ubuntu 22.04
+
+- voxblox/CMakeLists.txt: bump -std=c++11 to c++17 (required by abseil
+  20240116 transitively via conda's libprotobuf 4.25).
+- voxblox/CMakeLists.txt: add -DGLOG_USE_GLOG_EXPORT (conda-forge glog 0.7
+  refuses to compile without it).
+- voxblox/CMakeLists.txt: gate test_load_esdf / tsdf_to_esdf executables
+  on KIMERA_WORKSPACE_SKIP_VOXBLOX_TESTS env var so default build skips
+  them (they link glog directly and fail under conda-forge glog 0.7).
+- voxblox_ros/CMakeLists.txt: same c++17 + GLOG_USE_GLOG_EXPORT, gate
+  voxblox_eval / simulation_eval / visualize_tsdf the same way, and
+  append glog to target_link_libraries for tsdf_server, esdf_server,
+  intensity_server runtime nodes so they pull the symbols at link time.
+
+Verified end-to-end on Ubuntu 22.04: voxblox + voxblox_ros build inside
+the kimera_ros conda env, and the resulting tsdf_server / kimera_semantics
+pipeline produces a 24 MB semantic .ply mesh (262 k vertices, 305 k faces,
+per-vertex semantic colors) from the Kimera-Semantics demo bag.
+
+diff --git a/docs/pages/Running-Voxblox.rst b/docs/pages/Running-Voxblox.rst
+index d43d97a..7fe0e7a 100644
+--- a/docs/pages/Running-Voxblox.rst
++++ b/docs/pages/Running-Voxblox.rst
+@@ -3,7 +3,7 @@ Running Voxblox
+ ===============
+ 
+ The easiest way to test out voxblox is to try it out on a dataset.
+-We have launch files for our `own dataset <http://projects.asl.ethz.ch/datasets/doku.php?id=iros2017/>`_, the `Euroc Vicon Room datasets <http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets/>`_, and the `KITTI raw datasets <http://www.cvlibs.net/datasets/kitti//>`_ processed through `kitti_to_rosbag <https://github.com/ethz-asl/kitti_to_rosbag/>`_.
++We have launch files for our `own dataset <http://projects.asl.ethz.ch/datasets/doku.php?id=iros2017/>`_, the `Euroc Vicon Room datasets <https://www.research-collection.ethz.ch/handle/20.500.11850/690084>`_, and the `KITTI raw datasets <http://www.cvlibs.net/datasets/kitti//>`_ processed through `kitti_to_rosbag <https://github.com/ethz-asl/kitti_to_rosbag/>`_.
+ 
+ For each of these datasets, there's a launch file associated under `voxblox_ros/launch`.
+ 
+diff --git a/voxblox/CMakeLists.txt b/voxblox/CMakeLists.txt
+index 3a0c1ef..9de3367 100644
+--- a/voxblox/CMakeLists.txt
++++ b/voxblox/CMakeLists.txt
+@@ -5,7 +5,10 @@ find_package(catkin_simple REQUIRED )
+ catkin_simple(ALL_DEPS_REQUIRED)
+ 
+ set(CMAKE_MACOSX_RPATH 0)
+-add_definitions(-std=c++11 -Wall -Wextra)
++add_definitions(-std=c++17 -Wall -Wextra)
++# conda-forge glog 0.7+ requires this define to consume <glog/logging.h>
++# without the new export-target boilerplate.
++add_definitions(-DGLOG_USE_GLOG_EXPORT)
+ 
+ ############
+ # PROTOBUF #
+@@ -63,6 +66,10 @@ target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_proto)
+ # BINARIES #
+ ############
+ 
++# Test executables that link glog directly run into conda-forge glog 0.7
++# export-target requirements that voxblox's bare include doesn't satisfy.
++# voxblox_ros / kimera_semantics_ros don't depend on these binaries.
++if(NOT DEFINED ENV{KIMERA_WORKSPACE_SKIP_VOXBLOX_TESTS})
+ add_executable(tsdf_to_esdf
+   test/tsdf_to_esdf.cc
+ )
+@@ -72,6 +79,7 @@ add_executable(test_load_esdf
+   test/test_load_esdf.cc
+ )
+ target_link_libraries(test_load_esdf ${PROJECT_NAME})
++endif()
+ 
+ #########
+ # TESTS #
+diff --git a/voxblox_ros/CMakeLists.txt b/voxblox_ros/CMakeLists.txt
+index e325856..d1fabb6 100644
+--- a/voxblox_ros/CMakeLists.txt
++++ b/voxblox_ros/CMakeLists.txt
+@@ -4,7 +4,9 @@ project(voxblox_ros)
+ find_package(catkin_simple REQUIRED)
+ catkin_simple(ALL_DEPS_REQUIRED)
+ 
+-add_definitions(-std=c++14 -Wall -Wextra)
++add_definitions(-std=c++17 -Wall -Wextra -DGLOG_USE_GLOG_EXPORT)
++set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ 
+ #############
+ # LIBRARIES #
+@@ -22,26 +24,34 @@ cs_add_library(${PROJECT_NAME}
+ # BINARIES #
+ ############
+ 
++# voxblox_eval + simulation_eval + visualize_tsdf are standalone test/eval
++# binaries that include <glog/logging.h> directly without proper find_package
++# wiring. conda-forge glog 0.7 refuses to link them. The voxblox_node /
++# tsdf_server / esdf_server runtime nodes link glog transitively via
++# libvoxblox.so (which carries -DGLOG_USE_GLOG_EXPORT) and are unaffected.
++if(NOT DEFINED ENV{KIMERA_WORKSPACE_SKIP_VOXBLOX_TESTS})
+ cs_add_executable(voxblox_eval
+   src/voxblox_eval.cc
+ )
+ target_link_libraries(voxblox_eval ${PROJECT_NAME})
++endif()
+ 
+ cs_add_executable(tsdf_server
+   src/tsdf_server_node.cc
+ )
+-target_link_libraries(tsdf_server ${PROJECT_NAME})
++target_link_libraries(tsdf_server ${PROJECT_NAME} glog)
+ 
+ cs_add_executable(esdf_server
+   src/esdf_server_node.cc
+ )
+-target_link_libraries(esdf_server ${PROJECT_NAME})
++target_link_libraries(esdf_server ${PROJECT_NAME} glog)
+ 
+ cs_add_executable(intensity_server
+   src/intensity_server_node.cc
+ )
+-target_link_libraries(intensity_server ${PROJECT_NAME})
++target_link_libraries(intensity_server ${PROJECT_NAME} glog)
+ 
++if(NOT DEFINED ENV{KIMERA_WORKSPACE_SKIP_VOXBLOX_TESTS})
+ cs_add_executable(simulation_eval
+   src/simulation_eval.cc
+ )
+@@ -51,6 +61,7 @@ cs_add_executable(visualize_tsdf
+   src/visualize_tsdf.cc
+ )
+ target_link_libraries(visualize_tsdf ${PROJECT_NAME})
++endif()
+ 
+ ##########
+ # EXPORT #
+diff --git a/voxblox_ros/launch/euroc_dataset.launch b/voxblox_ros/launch/euroc_dataset.launch
+index b5a5de1..0b4ebf8 100644
+--- a/voxblox_ros/launch/euroc_dataset.launch
++++ b/voxblox_ros/launch/euroc_dataset.launch
+@@ -6,7 +6,7 @@
+   <arg name="process_every_nth_frame" default="5" />
+   <arg name="scale" default="0.5" />
+ 
+-  <!-- Download dataset here: https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets -->
++  <!-- Download dataset here: https://www.research-collection.ethz.ch/handle/20.500.11850/690084 -->
+ 
+   <node name="player" pkg="rosbag" type="play" output="screen" args=" -r 1.0 --clock $(arg bag_file)" if="$(arg play_bag)"/>
+ 
+diff --git a/voxblox_rviz_plugin/CMakeLists.txt b/voxblox_rviz_plugin/CMakeLists.txt
+index 5b8442c..e3e7512 100644
+--- a/voxblox_rviz_plugin/CMakeLists.txt
++++ b/voxblox_rviz_plugin/CMakeLists.txt
+@@ -5,7 +5,9 @@ find_package(catkin_simple REQUIRED)
+ catkin_simple(ALL_DEPS_REQUIRED)
+ 
+ set(CMAKE_MACOSX_RPATH 0)
+-add_definitions(-std=c++11 -Wall)
++add_definitions(-std=c++17 -Wall -DGLOG_USE_GLOG_EXPORT)
++set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ 
+ ## This setting causes Qt's "MOC" generation to happen automatically.
+ set(CMAKE_AUTOMOC ON)
+-- 
+2.34.1
+

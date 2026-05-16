@@ -1,0 +1,102 @@
+From 40ce4fd04225b70044ea570efd6e7a45d209d7d6 Mon Sep 17 00:00:00 2001
+From: Rebel <allesrebel@yahoo.com>
+Date: Tue, 12 May 2026 18:30:56 +0000
+Subject: [PATCH] Patches for conda-forge / RoboStack build on Ubuntu 22.04
+
+- kimera_semantics/CMakeLists.txt: add -std=c++17 + -DGLOG_USE_GLOG_EXPORT
+  for abseil 20240116 / conda-forge glog 0.7 compatibility.
+- kimera_semantics_ros/CMakeLists.txt: same defines, plus append 'glog' to
+  target_link_libraries for kimera_semantics_node, kimera_semantics_rosbag,
+  and semantic_simulator_eval (executables link glog directly under
+  conda-forge glog 0.7).
+- kimera_semantics_ros/src/kimera_semantics_node.cpp,
+  kimera_semantics_ros/src/kimera_semantics_rosbag.cpp: add explicit
+  '#include <gflags/gflags.h>' (was relied on transitively via a header
+  chain that no longer pulls it under newer ROS Noetic / gflags 2.2).
+
+Verified end-to-end: kimera_semantics_node produces a 24 MB semantic .ply
+mesh (262 k vertices, 305 k faces, per-vertex semantic colors) from the
+Kimera-Semantics demo bag on Ubuntu 22.04 via RoboStack.
+
+diff --git a/kimera_semantics/CMakeLists.txt b/kimera_semantics/CMakeLists.txt
+index fb5f28f..554d0ae 100644
+--- a/kimera_semantics/CMakeLists.txt
++++ b/kimera_semantics/CMakeLists.txt
+@@ -3,6 +3,12 @@ project(kimera_semantics)
+ 
+ find_package(catkin_simple REQUIRED)
+ 
++# C++17 needed for conda-forge abseil/protobuf 4.x. GLOG_USE_GLOG_EXPORT
++# matches conda-forge glog 0.7+ include guard.
++add_definitions(-std=c++17 -DGLOG_USE_GLOG_EXPORT)
++set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++
+ catkin_simple()
+ 
+ cs_add_library(${PROJECT_NAME}
+diff --git a/kimera_semantics_ros/CMakeLists.txt b/kimera_semantics_ros/CMakeLists.txt
+index 4b02142..304c867 100644
+--- a/kimera_semantics_ros/CMakeLists.txt
++++ b/kimera_semantics_ros/CMakeLists.txt
+@@ -3,6 +3,10 @@ project(kimera_semantics_ros)
+ 
+ find_package(catkin_simple REQUIRED)
+ 
++add_definitions(-std=c++17 -DGLOG_USE_GLOG_EXPORT)
++set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++
+ catkin_simple()
+ 
+ cs_add_library(${PROJECT_NAME}
+@@ -22,17 +26,17 @@ cs_add_library(${PROJECT_NAME}
+ cs_add_executable(kimera_semantics_node
+   src/kimera_semantics_node.cpp
+ )
+-target_link_libraries(kimera_semantics_node ${PROJECT_NAME})
++target_link_libraries(kimera_semantics_node ${PROJECT_NAME} glog)
+ 
+ cs_add_executable(kimera_semantics_rosbag
+   src/kimera_semantics_rosbag.cpp
+ )
+-target_link_libraries(kimera_semantics_rosbag ${PROJECT_NAME})
++target_link_libraries(kimera_semantics_rosbag ${PROJECT_NAME} glog)
+ 
+ cs_add_executable(semantic_simulator_eval
+   src/semantic_simulation_eval.cpp
+ )
+-target_link_libraries(semantic_simulator_eval ${PROJECT_NAME} ${PCL_LIBRARIES})
++target_link_libraries(semantic_simulator_eval ${PROJECT_NAME} ${PCL_LIBRARIES} glog)
+ 
+ cs_install()
+ 
+diff --git a/kimera_semantics_ros/src/kimera_semantics_node.cpp b/kimera_semantics_ros/src/kimera_semantics_node.cpp
+index fcfc955..a3f0adf 100644
+--- a/kimera_semantics_ros/src/kimera_semantics_node.cpp
++++ b/kimera_semantics_ros/src/kimera_semantics_node.cpp
+@@ -4,6 +4,9 @@
+  * @author Antoni Rosinol
+  */
+ 
++#include <gflags/gflags.h>
++#include <glog/logging.h>
++
+ #include "kimera_semantics_ros/semantic_tsdf_server.h"
+ 
+ int main(int argc, char** argv) {
+diff --git a/kimera_semantics_ros/src/kimera_semantics_rosbag.cpp b/kimera_semantics_ros/src/kimera_semantics_rosbag.cpp
+index 024c6c2..52ae9e5 100644
+--- a/kimera_semantics_ros/src/kimera_semantics_rosbag.cpp
++++ b/kimera_semantics_ros/src/kimera_semantics_rosbag.cpp
+@@ -8,6 +8,7 @@
+ #include <ros/ros.h>
+ #include <sensor_msgs/Image.h>
+ 
++#include <gflags/gflags.h>
+ #include <glog/logging.h>
+ 
+ #include <voxblox_ros/esdf_server.h>
+-- 
+2.34.1
+

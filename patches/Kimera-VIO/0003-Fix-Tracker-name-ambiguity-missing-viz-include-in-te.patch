@@ -1,0 +1,176 @@
+From 8a01c0c7fe9e87ddcac95fb7aa09d8bb95efb840 Mon Sep 17 00:00:00 2001
+From: Rebel <allesrebel@yahoo.com>
+Date: Tue, 5 May 2026 14:09:21 +0000
+Subject: [PATCH 3/4] Fix Tracker name ambiguity + missing viz include in tests
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+After bumping GTSAM 4.1.1 to 4.2 the test target failed to build:
+  testTracker.cpp:691: reference to 'Tracker' is ambiguous
+plus cascading errors in testOpticalFlowPredictor.cpp.
+
+Root cause: testTracker.cpp does `using namespace cv;` and
+`using namespace VIO;` together, and the GTSAM 4.2 header chain
+exposes another 'Tracker' (cv::Tracker via tracking module) at the
+unqualified scope, making the bare name ambiguous.
+
+testTracker.cpp:
+- Qualify every bare 'Tracker' as 'VIO::Tracker' (10 occurrences:
+  member type aliases, constructors, static helper calls).
+
+testOpticalFlowPredictor.cpp:
+- Add '#include <opencv2/viz.hpp>' so cv::viz::Color and
+  cv::viz::Viz3d are visible (same root cause as the production
+  fixes from the prior commit on this branch — opencv2/opencv.hpp
+  doesn't transitively pull viz on Ubuntu 22.04 OpenCV 4.5.4).
+
+testKimeraVIO now builds with -DKIMERA_BUILD_TESTS=ON. Many tests pass
+under xvfb-run; one suite (LCDFixture) crashes on a missing vocab/data
+fixture path — runtime data issue, out of scope for the compile fix.
+
+diff --git a/tests/testOpticalFlowPredictor.cpp b/tests/testOpticalFlowPredictor.cpp
+index cabba9cd..20bc6004 100644
+--- a/tests/testOpticalFlowPredictor.cpp
++++ b/tests/testOpticalFlowPredictor.cpp
+@@ -17,6 +17,7 @@
+ #include <gflags/gflags.h>
+ #include <gtest/gtest.h>
+ 
++#include <opencv2/viz.hpp>
+ #include "kimera-vio/frontend/optical-flow/OpticalFlowPredictor.h"
+ #include "kimera-vio/frontend/optical-flow/OpticalFlowPredictorFactory.h"
+ #include "kimera-vio/pipeline/Pipeline-definitions.h"
+diff --git a/tests/testTracker.cpp b/tests/testTracker.cpp
+index ec888187..9834fcdd 100644
+--- a/tests/testTracker.cpp
++++ b/tests/testTracker.cpp
+@@ -8,7 +8,7 @@
+ 
+ /**
+  * @file   testTracker.cpp
+- * @brief  test Tracker
++ * @brief  test VIO::Tracker
+  * @author Antoni Rosinol
+  * @author Luca Carlone
+  * @author Marcus Abate
+@@ -60,7 +60,7 @@ class TestTracker : public ::testing::Test {
+     InitializeData();
+ 
+     if (FLAGS_display) {
+-      window_ = std::make_unique<cv::viz::Viz3d>("Test Tracker");
++      window_ = std::make_unique<cv::viz::Viz3d>("Test VIO::Tracker");
+       window_->setBackgroundColor(cv::viz::Color::black());
+     }
+   }
+@@ -132,7 +132,7 @@ class TestTracker : public ::testing::Test {
+         std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
+     stereo_matcher_ = std::make_unique<VIO::StereoMatcher>(
+         stereo_camera_, tp.stereo_matching_params_);
+-    tracker_ = std::make_unique<Tracker>(
++    tracker_ = std::make_unique<VIO::Tracker>(
+         tracker_params_, stereo_camera_->getOriginalLeftCamera());
+ 
+     feature_detector_ =
+@@ -688,7 +688,7 @@ class TestTracker : public ::testing::Test {
+  protected:
+   // Perform Ransac
+   TrackerParams tracker_params_;
+-  Tracker::UniquePtr tracker_;
++  VIO::Tracker::UniquePtr tracker_;
+   VIO::FeatureDetector::UniquePtr feature_detector_;
+ 
+   Frame::Ptr ref_frame, cur_frame;
+@@ -776,7 +776,7 @@ TEST_F(TestTracker, geometricOutlierRejection2d2d) {
+       trackerParams.ransac_max_iterations_ = 1000;
+       // trackerParams.ransac_probability_ = 0.8;
+       trackerParams.ransac_randomize_ = false;
+-      Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
++      VIO::Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
+       TrackingStatus tracking_status;
+       Pose3 estimated_pose;
+       tie(tracking_status, estimated_pose) =
+@@ -805,7 +805,7 @@ TEST_F(TestTracker, geometricOutlierRejection2d2dGivenRotation) {
+   TrackerParams tracker_params = TrackerParams();
+   tracker_params.ransac_use_1point_stereo_ = true;
+   tracker_params.ransac_randomize_ = false;
+-  Tracker tracker(tracker_params, stereo_camera_->getOriginalLeftCamera());
++  VIO::Tracker tracker(tracker_params, stereo_camera_->getOriginalLeftCamera());
+   // Start with the simplest case:
+   // Noise free, no outlier, non-planar
+ 
+@@ -975,7 +975,7 @@ TEST_F(TestTracker, geometricOutlierRejection3d3d) {
+       TrackerParams trackerParams;
+       trackerParams.ransac_threshold_stereo_ = 0.3;
+       trackerParams.ransac_randomize_ = false;
+-      Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
++      VIO::Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
+       TrackingStatus tracking_status;
+       Pose3 estimated_pose;
+       tie(tracking_status, estimated_pose) =
+@@ -1216,7 +1216,7 @@ TEST_F(TestTracker, getPoint3AndCovariance) {
+   // use function to get actual answer
+   Vector3 f_ref_i_expected, f_ref_i_actual;
+   Matrix3 cov_ref_i_expected, cov_ref_i_actual;
+-  tie(f_ref_i_actual, cov_ref_i_actual) = Tracker::getPoint3AndCovariance(
++  tie(f_ref_i_actual, cov_ref_i_actual) = VIO::Tracker::getPoint3AndCovariance(
+       *ref_stereo_frame, stereoCam, pointId, stereoPtCov);
+ 
+   // use monte carlo method to get expected answer
+@@ -1261,7 +1261,7 @@ TEST_F(TestTracker, findOutliers) {
+     random_shuffle(inliers.begin(), inliers.end());
+ 
+     vector<int> outliers_actual;
+-    Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
++    VIO::Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
+ 
+     // check that outliers_actual matches outliers_expected
+     EXPECT_EQ(outliers_expected.size(), outliers_actual.size());
+@@ -1289,7 +1289,7 @@ TEST_F(TestTracker, findOutliers) {
+     vector<pair<size_t, size_t>> matches_ref_cur(num_outliers);
+ 
+     vector<int> outliers_actual;
+-    Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
++    VIO::Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
+ 
+     // check that outliers_actual matches outliers_expected
+     EXPECT_EQ(outliers_expected.size(), outliers_actual.size());
+@@ -1316,7 +1316,7 @@ TEST_F(TestTracker, findOutliers) {
+     random_shuffle(inliers.begin(), inliers.end());
+ 
+     vector<int> outliers_actual;
+-    Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
++    VIO::Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
+ 
+     // check that outliers_actual matches outliers_expected
+     EXPECT_EQ(outliers_actual.size(), 0);
+@@ -1366,7 +1366,7 @@ TEST_F(TestTracker, FindMatchingKeypoints) {
+   random_shuffle(cur_frame->landmarks_.begin(), cur_frame->landmarks_.end());
+ 
+   vector<pair<size_t, size_t>> matches_ref_cur;
+-  Tracker::findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
++  VIO::Tracker::findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
+ 
+   // Check the correctness of matches_ref_cur
+   EXPECT_EQ(matches_ref_cur.size(), num_landmarks_common);
+@@ -1455,7 +1455,7 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
+   }
+ 
+   vector<pair<size_t, size_t>> matches_ref_cur;
+-  Tracker::findMatchingStereoKeypoints(
++  VIO::Tracker::findMatchingStereoKeypoints(
+       *ref_stereo_frame, *cur_stereo_frame, &matches_ref_cur);
+ 
+   // Check the correctness!
+@@ -1634,7 +1634,7 @@ TEST_F(TestTracker, PnPTracking) {
+   tracker_params_.ransac_threshold_pnp_ = 0.5;
+ 
+   //! Create pnp tracker
+-  tracker_ = std::make_unique<Tracker>(tracker_params_,
++  tracker_ = std::make_unique<VIO::Tracker>(tracker_params_,
+                                        stereo_camera_->getOriginalLeftCamera());
+ 
+   //! Populate data
+-- 
+2.34.1
+

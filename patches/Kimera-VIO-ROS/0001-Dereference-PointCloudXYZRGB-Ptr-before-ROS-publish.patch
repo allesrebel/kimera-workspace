@@ -1,0 +1,39 @@
+From 9fa8ad38b24c8f318ac552ba3b7b915d725a8dcc Mon Sep 17 00:00:00 2001
+From: Rebel <allesrebel@yahoo.com>
+Date: Sat, 16 May 2026 01:36:20 +0000
+Subject: [PATCH] Dereference PointCloudXYZRGB::Ptr before ROS publish
+
+Modern PCL (1.13+) uses std::shared_ptr for the PointCloud<T>::Ptr alias,
+but the ROS Publisher::publish<T>() template only has ROS message_traits
+registered for the bare pcl::PointCloud<T> (and historically for
+boost::shared_ptr<>). Passing a std::shared_ptr<> fails with
+'no member __getMD5Sum / __getDataType / serializationLength / serialize'
+on the shared_ptr type.
+
+Fix: pass *msg (the PointCloud by reference) so the right template
+specialization picks up. Publisher is still advertised as PointCloudXYZRGB;
+subscribers see the same on-the-wire message.
+
+Required for kimera_vio_ros_node to compile against conda-forge PCL 1.13
+on the RoboStack catkin path.
+
+diff --git a/src/RosVisualizer.cpp b/src/RosVisualizer.cpp
+index 50dcb7c..fc9beca 100644
+--- a/src/RosVisualizer.cpp
++++ b/src/RosVisualizer.cpp
+@@ -181,7 +181,11 @@ void RosVisualizer::publishTimeHorizonPointCloud(
+   ros::Time ros_timestamp;
+   ros_timestamp.fromNSec(timestamp);
+   pcl_conversions::toPCL(ros_timestamp, msg->header.stamp);
+-  pointcloud_pub_.publish(msg);
++  // Dereference: modern PCL uses std::shared_ptr, but the ROS Publisher::publish
++  // template only has message_traits registered for pcl::PointCloud<T> itself
++  // (and historically for boost::shared_ptr<>). Pass by value/reference to
++  // resolve the right template specialization.
++  pointcloud_pub_.publish(*msg);
+ }
+ 
+ void RosVisualizer::publishDebugImage(const Timestamp& timestamp,
+-- 
+2.34.1
+

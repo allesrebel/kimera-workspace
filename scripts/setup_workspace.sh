@@ -39,6 +39,44 @@ add_submodule https://github.com/MIT-SPARK/Kimera-VIO-ROS.git src/Kimera-VIO-ROS
 echo "Updating submodules..."
 git submodule update --init --recursive
 
+# Apply local patches captured under patches/<submodule>/ on top of the
+# upstream submodule SHAs the parent repo pins. We deliberately track
+# upstream SHAs (not custom forks) in .gitmodules so a fresh `git clone`
+# can fetch them; the patches contain every workspace-specific fix and are
+# re-applied here so the working tree matches the verified state.
+#
+# Idempotent: re-running this script after the patches are already applied
+# is a no-op (`git am --abort` if needed then re-apply is safe because
+# upstream SHA is the same and the patches still apply cleanly).
+apply_patches_for_submodule() {
+    local subdir="$1"  # path under src/, e.g. "Kimera-VIO"
+    local patchdir="${REPO_ROOT}/patches/${subdir}"
+    [ -d "${patchdir}" ] || return 0
+    local sub_path="${REPO_ROOT}/src/${subdir}"
+    [ -d "${sub_path}/.git" ] || return 0
+
+    # Detect already-applied: HEAD's tree should differ from the recorded
+    # gitlink if patches are already applied. We use a marker file instead.
+    local marker="${sub_path}/.kimera_workspace_patches_applied"
+    if [ -f "${marker}" ]; then
+        echo "  ${subdir}: patches already applied (marker present), skipping"
+        return 0
+    fi
+
+    echo "  ${subdir}: applying $(ls "${patchdir}"/*.patch 2>/dev/null | wc -l) patch(es)..."
+    # `git am` preserves authorship + commit messages from format-patch output.
+    (cd "${sub_path}" && git am --keep-cr "${patchdir}"/*.patch) \
+        || { (cd "${sub_path}" && git am --abort 2>/dev/null); echo "FAILED applying patches to ${subdir}"; return 1; }
+    touch "${marker}"
+}
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+echo "Applying workspace-local patches to submodules..."
+apply_patches_for_submodule Kimera-VIO
+apply_patches_for_submodule Kimera-VIO-ROS
+apply_patches_for_submodule voxblox
+apply_patches_for_submodule Kimera-Semantics
+
 # Fetch the ETHZ-ASL / MIT-SPARK helper catkin packages enumerated in the
 # upstream rosinstall files (catkin_simple, eigen_catkin, glog_catkin,
 # gflags_catkin, minkindr, minkindr_ros, mesh_rviz_plugins, pose_graph_tools,
