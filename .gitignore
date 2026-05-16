@@ -40,3 +40,4 @@ src/voxblox_rviz_plugin/
 *.swo
 .vscode/
 .idea/
+src/vision_opencv/

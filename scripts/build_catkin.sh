@@ -24,7 +24,19 @@ fi
 
 cd "${REPO_ROOT}"
 
+# Auto-set the env var that gates voxblox's glog-linking test executables
+# (test_load_esdf, tsdf_to_esdf, voxblox_eval, simulation_eval, visualize_tsdf).
+# Those binaries include <glog/logging.h> directly and fail under conda-forge
+# glog 0.7. Runtime nodes (tsdf_server, esdf_server, kimera_*_node, etc.)
+# are unaffected — they link glog via the library targets.
+export KIMERA_WORKSPACE_SKIP_VOXBLOX_TESTS=1
+
 # First-time catkin config. Idempotent (catkin config returns 0 on existing config).
+# OpenCV_DIR points at the system 4.5 install (which has the cv::viz module
+# that Kimera-VIO uses). Combined with the cv_bridge source build from
+# src/vision_opencv (added by setup_workspace.sh), this keeps the OpenCV ABI
+# consistent across libkimera_vio.so, libcv_bridge.so, and the
+# kimera_vio_ros_node binary.
 catkin config \
     --init \
     --extend "${CONDA_PREFIX}" \
