@@ -1,0 +1,40 @@
+<launch>
+  <!-- VIO->Semantics full pipeline on the MicroEuroc bag.
+       - kimera_vio_ros runs ONLINE (subscribes to /cam0, /cam1, /imu0 from
+         the rosbag play below; publishes TF + odometry).
+       - kimera_semantics runs with run_stereo_dense=true to generate depth
+         from /cam0+/cam1, depth_image_proc converts to point cloud, then
+         voxblox integrates it via the VIO-published TF.
+       - EuRoC has no semantic labels, so metric_semantic_reconstruction:=false
+         and we get an RGB-colored dense mesh, not a semantic one. -->
+
+  <arg name="bag_file" default="/tmp/MicroEuroc.bag"/>
+  <arg name="rosbag_rate" default="0.5"/>
+
+  <!-- 1. Kimera-VIO-ROS: stereo+IMU -> TF + odometry. -->
+  <include file="$(find kimera_vio_ros)/launch/kimera_vio_ros_euroc.launch">
+    <arg name="online" value="true"/>
+    <arg name="log_output" value="true"/>
+    <arg name="visualize" value="false"/>
+    <arg name="left_cam_topic"  value="/cam0/image_raw"/>
+    <arg name="right_cam_topic" value="/cam1/image_raw"/>
+    <arg name="imu_topic"       value="/imu0"/>
+  </include>
+
+  <!-- 2. Kimera-Semantics: voxblox dense reconstruction. -->
+  <include file="$(find kimera_semantics_ros)/launch/kimera_semantics.launch">
+    <arg name="play_bag" value="false"/>  <!-- we play the bag ourselves below -->
+    <arg name="metric_semantic_reconstruction" value="false"/>
+    <arg name="run_stereo_dense" value="true"/>
+    <arg name="left_cam_topic"      value="/cam0/image_raw"/>
+    <arg name="right_cam_topic"     value="/cam1/image_raw"/>
+    <arg name="left_cam_info_topic"  value="/cam0/camera_info"/>
+    <arg name="right_cam_info_topic" value="/cam1/camera_info"/>
+    <arg name="sensor_frame" value="cam0"/>
+    <arg name="voxel_size" value="0.05"/>
+  </include>
+
+  <!-- 3. Play the bag. -->
+  <node name="rosbag_player" pkg="rosbag" type="play" output="screen"
+        args="--clock --rate $(arg rosbag_rate) $(arg bag_file)"/>
+</launch>
