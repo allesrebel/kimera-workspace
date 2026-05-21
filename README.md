@@ -80,54 +80,50 @@ from conda-forge). The native build above is **not** affected.
 ```bash
 ./scripts/setup_ros_env.sh
 ```
-Installs micromamba (if missing) and creates/updates the `kimera_ros` env
-from `scripts/kimera_ros.env.yaml`. Idempotent.
+Installs micromamba (if missing) and creates/updates the `kimera_ros` env from `scripts/kimera_ros.env.yaml`. Idempotent.
 
-### Activate the env (every new shell)
+### Workspace Setup & Patching
+To clone submodules, apply workspace git patches (handling glog version conflicts, Boost compatibility, and forward declarations), clone vision-opencv libraries, and automatically configure `CATKIN_IGNORE` files to ignore duplicate packages in nested submodules, run the automated setup script:
 ```bash
-export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
-eval "$("$HOME/.local/bin/micromamba" shell hook -s bash)"
-micromamba activate kimera_ros
+./run_setup_workspace_in_env.sh
 ```
 
-After activation `echo $ROS_DISTRO` should print `noetic` and `which catkin`
-should resolve under `$CONDA_PREFIX/bin`.
-
-### Fetch ETHZ-ASL helper catkin packages
-The helper packages (catkin_simple, eigen_catkin, glog_catkin, minkindr,
-mesh_rviz_plugins, etc.) are pulled by `vcstool` into `src/` (not git
-submodules; listed in `.gitignore`). `setup_workspace.sh` runs the imports
-automatically when `vcs` is on PATH (which it is inside `kimera_ros`):
+### Build the Workspace
+To build the entire 68-package workspace (including native VIO components and ROS nodes) inside the environment, run:
 ```bash
-./scripts/setup_workspace.sh
+./run_build_catkin_in_env.sh
 ```
+This automatically configures the catkin workspace with environment shims (overriding glog target exports to developer libraries and adjusting GTSAM compiler flags) and executes the build in parallel.
 
-### Build the catkin workspace
+### Run the End-to-End Demo
+To verify the full semantics reconstruction pipeline on the demo dataset bag:
+1. Ensure the datasets are downloaded via `./scripts/download_datasets.sh`.
+2. Source the devel space in your shell:
+   ```bash
+   # Make sure you are inside the micromamba env
+   micromamba activate kimera_ros
+   source devel/setup.bash
+   ```
+3. Run the ROS bags and nodes:
+   ```bash
+   roslaunch kimera_semantics_ros kimera_semantics.launch \
+       play_bag:=true \
+       bag_file:=$(pwd)/datasets/kimera_semantics_demo.bag \
+       metric_semantic_reconstruction:=true \
+       run_stereo_dense:=false
+   ```
+4. In another terminal, call the mesh generation service:
+   ```bash
+   rosservice call /kimera_semantics_node/generate_mesh "{}"
+   ```
+
+This generates a per-vertex colored 3D semantic mesh under `src/Kimera-Semantics/kimera_semantics_ros/mesh_results/tesse_*.ply` (~24 MB, 261,832 vertices, 304,142 faces).
+
+### Cleanup
+To cleanly shut down the active ROS processes and prevent nodelet manager name duplication errors on subsequent runs, use:
 ```bash
-KIMERA_WORKSPACE_SKIP_VOXBLOX_TESTS=1 ./scripts/build_catkin.sh
+pkill -9 -f "roscore|rosmaster|roslaunch|nodelet|kimera_semantics|rosout" || true
 ```
-The env var skips a handful of voxblox test executables that link
-`glog::glog` directly and fail under conda-forge glog 0.7 — runtime nodes
-are unaffected. See `docs/patches.md` for the full patch rationale.
-
-### Run the end-to-end demo
-```bash
-source devel/setup.bash
-roslaunch kimera_semantics_ros kimera_semantics.launch \
-    play_bag:=true \
-    bag_file:=$(pwd)/datasets/kimera_semantics_demo.bag \
-    metric_semantic_reconstruction:=true \
-    run_stereo_dense:=false
-# After bag finishes:
-rosservice call /kimera_semantics_node/generate_mesh "{}"
-```
-Produces a semantic `.ply` mesh under
-`src/Kimera-Semantics/kimera_semantics_ros/mesh_results/tesse_*.ply` —
-~24 MB, 262 k vertices, 305 k faces, per-vertex semantic colors.
-
-To return to the native CLI, `micromamba deactivate` — the env's
-`LD_LIBRARY_PATH`/`PATH` shims drop off and the `/usr/local` toolchain
-returns.
 
 ## References
 - [MIT-SPARK/Kimera](https://github.com/MIT-SPARK/Kimera)
