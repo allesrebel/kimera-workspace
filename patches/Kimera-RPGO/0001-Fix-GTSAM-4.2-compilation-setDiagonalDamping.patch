@@ -1,0 +1,39 @@
+From e0d7273e864327aaf95f7cdc99bdf0925941f3b2 Mon Sep 17 00:00:00 2001
+From: Kimera Developer <kimera@example.com>
+Date: Thu, 21 May 2026 14:34:48 +0000
+Subject: [PATCH] Fix GTSAM 4.2 compilation (setDiagonalDamping)
+
+---
+ src/GenericSolver.cpp | 2 +-
+ src/RobustSolver.cpp  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/GenericSolver.cpp b/src/GenericSolver.cpp
+index 086fc33..885f25f 100644
+--- a/src/GenericSolver.cpp
++++ b/src/GenericSolver.cpp
+@@ -92,7 +92,7 @@ void GenericSolver::update(const gtsam::NonlinearFactorGraph& nfg,
+         params.setVerbosityLM("SUMMARY");
+         log<INFO>("Running LM");
+       }
+-      params.diagonalDamping = true;
++      params.setDiagonalDamping(true);
+       result = gtsam::LevenbergMarquardtOptimizer(full_nfg, full_values, params)
+                    .optimize();
+     } else if (solver_type_ == Solver::GN) {
+diff --git a/src/RobustSolver.cpp b/src/RobustSolver.cpp
+index 4e2e276..7f3f7fb 100644
+--- a/src/RobustSolver.cpp
++++ b/src/RobustSolver.cpp
+@@ -122,7 +122,7 @@ void RobustSolver::optimize() {
+ 
+   if (solver_type_ == Solver::LM) {
+     gtsam::LevenbergMarquardtParams lmParams;
+-    lmParams.diagonalDamping = params_.lm_diagonal_damping;
++    lmParams.setDiagonalDamping(params_.lm_diagonal_damping);
+     if (debug_) {
+       lmParams.setVerbosityLM("SUMMARY");
+       log<INFO>("Running LM");
+-- 
+2.34.1
+

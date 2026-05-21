@@ -41,7 +41,10 @@ catkin config \
     --init \
     --extend "${CONDA_PREFIX}" \
     --merge-devel \
-    --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -Dimage_geometry_DIR="${CONDA_PREFIX}/share/image_geometry/cmake" -Dimage_proc_DIR="${CONDA_PREFIX}/share/image_proc/cmake" -DKIMERA_BUILD_TESTS=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Pangolin=ON -DOpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4
+    --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF -DGTSAM_WERROR=OFF -DCMAKE_CXX_FLAGS="-Wno-error -Wno-deprecated-copy -Wno-maybe-uninitialized" -Dimage_geometry_DIR="${CONDA_PREFIX}/share/image_geometry/cmake" -Dimage_proc_DIR="${CONDA_PREFIX}/share/image_proc/cmake" -DKIMERA_BUILD_TESTS=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Pangolin=ON -DOpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4 -DGLOG_PREFER_EXPORTED_GLOG_CMAKE_CONFIGURATION=OFF -DGLOG_LIBRARY="${REPO_ROOT}/devel/lib/libglog.so" -DGLOG_INCLUDE_DIR="${REPO_ROOT}/devel/include"
+
+# Ensure newly built shared libraries are findable by tools built in this workspace
+export LD_LIBRARY_PATH="${REPO_ROOT}/devel/lib:${LD_LIBRARY_PATH:-}"
 
 # catkin_tools resolves the dep graph across the workspace; build everything.
 catkin build -j"$(nproc)"

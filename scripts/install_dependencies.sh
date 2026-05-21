@@ -39,7 +39,8 @@ $SUDO apt-get install -y \
     python3-pip \
     unzip \
     wget \
-    curl
+    curl \
+    xvfb
 
 # Build GTSAM, OpenGV, and DBoW2 from source in parallel.
 # These three libraries are independent, so we kick each one off in the

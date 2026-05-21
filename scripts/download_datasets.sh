@@ -92,7 +92,7 @@ fi
 # 2. Kimera-Semantics Demo Bag
 echo "Downloading Kimera-Semantics Demo..."
 if [ ! -f "kimera_semantics_demo.bag" ]; then
-    gdown --id 1SG8cfJ6JEfY2PGXcxDPAMYzCcGBEh4Qq -O kimera_semantics_demo.bag
+    gdown 1SG8cfJ6JEfY2PGXcxDPAMYzCcGBEh4Qq -O kimera_semantics_demo.bag
 fi
 
 # 3. uHumans Dataset (Sample)
@@ -104,7 +104,7 @@ echo "Downloading uHumans (uHumans_01)..."
 echo "Downloading uHumans2 (Office)..."
 # Office sample: uHumans2_office_s1_00h.bag
 if [ ! -f "uHumans2_office_s1_00h.bag" ]; then
-    gdown --id 1-28v8-M39-r_P9-I9z9-f_9-9-9-9-9 -O uHumans2_office_s1_00h.bag || echo "Skipping uHumans2 due to missing ID verification"
+    gdown 1-28v8-M39-r_P9-I9z9-f_9-9-9-9-9 -O uHumans2_office_s1_00h.bag || echo "Skipping uHumans2 due to missing ID verification"
 fi
 
 echo "Datasets download process finished."

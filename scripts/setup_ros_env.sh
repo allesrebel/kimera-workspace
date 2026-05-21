@@ -16,9 +16,10 @@ MICROMAMBA_BIN="${HOME}/.local/bin/micromamba"
 
 # Pre-flight: env (micromamba root) + working tree share /, so size accordingly.
 need_gb=6
-avail_gb=$(df -BG --output=avail "${HOME}" | tail -1 | tr -dc '0-9')
+mkdir -p "${MAMBA_ROOT_PREFIX}"
+avail_gb=$(df -BG --output=avail "${MAMBA_ROOT_PREFIX}" | tail -1 | tr -dc '0-9')
 if [ "${avail_gb}" -lt "${need_gb}" ]; then
-    echo "ERROR: need >= ${need_gb}G free in ${HOME}; have ${avail_gb}G." >&2
+    echo "ERROR: need >= ${need_gb}G free in ${MAMBA_ROOT_PREFIX}; have ${avail_gb}G." >&2
     exit 1
 fi
 
@@ -86,13 +87,13 @@ CF="https://conda.anaconda.org/conda-forge/linux-64"
 fetch_and_install_conda "libboost-1.82.0-h6fcfa73_6.conda"        "${CF}/libboost-1.82.0-h6fcfa73_6.conda"
 fetch_and_install_conda "libboost-devel-1.82.0-h00ab1b0_6.conda"  "${CF}/libboost-devel-1.82.0-h00ab1b0_6.conda"
 
-# PCL 1.13 + the matching ros-noetic-pcl-* (build _17 = boost-1.82 family).
+# PCL 1.13 + the matching ros-noetic-pcl-* (build _18 = np126py311 family).
 fetch_and_install_conda "pcl-1.13.1-h4836831_3.conda"             "${CF}/pcl-1.13.1-h4836831_3.conda"
 fetch_and_install_conda "flann-1.9.2-he1b7b50_6.conda"            "${CF}/flann-1.9.2-he1b7b50_6.conda"
-fetch_and_install_conda "ros-noetic-pcl-conversions-1.7.4-py311hb8eba80_17.tar.bz2"     "${RB}/ros-noetic-pcl-conversions-1.7.4-py311hb8eba80_17.tar.bz2"
-fetch_and_install_conda "ros-noetic-pcl-ros-1.7.4-py311hb8eba80_17.tar.bz2"             "${RB}/ros-noetic-pcl-ros-1.7.4-py311hb8eba80_17.tar.bz2"
+fetch_and_install_conda "ros-noetic-pcl-conversions-1.7.4-np126py311h3dde49b_18.conda"     "${RB}/ros-noetic-pcl-conversions-1.7.4-np126py311h3dde49b_18.conda"
+fetch_and_install_conda "ros-noetic-pcl-ros-1.7.4-np126py311h3dde49b_18.conda"             "${RB}/ros-noetic-pcl-ros-1.7.4-np126py311h3dde49b_18.conda"
 fetch_and_install_conda "ros-noetic-pcl-msgs-0.3.0-np126py311h3dde49b_18.conda"         "${RB}/ros-noetic-pcl-msgs-0.3.0-np126py311h3dde49b_18.conda"
-fetch_and_install_conda "ros-noetic-depth-image-proc-1.17.0-py311hb8eba80_17.tar.bz2"   "${RB}/ros-noetic-depth-image-proc-1.17.0-py311hb8eba80_17.tar.bz2"
+fetch_and_install_conda "ros-noetic-depth-image-proc-1.17.0-np126py311h3dde49b_18.conda"   "${RB}/ros-noetic-depth-image-proc-1.17.0-np126py311h3dde49b_18.conda"
 
 # Remove any stale boost-1.86 CMake configs left by earlier runs. With both
 # 1.82 and 1.86 configs present, CMake's find_package picks the newer one and

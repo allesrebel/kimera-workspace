@@ -1,0 +1,101 @@
+From 837139ff147b62627505ce1f3ee7f7a03386b993 Mon Sep 17 00:00:00 2001
+From: Gemini CLI <gemini-cli@example.com>
+Date: Thu, 21 May 2026 15:21:45 +0000
+Subject: [PATCH] Fix SuiteSparseQR forward declaration and boost bind
+ placeholder _1
+
+---
+ .../python_module/cmake/add_python_export_library.cmake      | 4 +++-
+ Schweizer-Messer/sm_random/CMakeLists.txt                    | 3 ++-
+ .../include/aslam/calibration/algorithms/linalg.h            | 2 +-
+ .../include/aslam/calibration/core/LinearSolver.h            | 2 +-
+ .../incremental_calibration/src/algorithms/linalg.cpp        | 5 ++++-
+ .../bsplines_python/src/BSplinePython.cpp                    | 1 +
+ 6 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/Schweizer-Messer/python_module/cmake/add_python_export_library.cmake b/Schweizer-Messer/python_module/cmake/add_python_export_library.cmake
+index ccd6093..a097dd9 100755
+--- a/Schweizer-Messer/python_module/cmake/add_python_export_library.cmake
++++ b/Schweizer-Messer/python_module/cmake/add_python_export_library.cmake
+@@ -86,7 +86,9 @@ ${SETUP_PY_TEXT}
+       list(APPEND BOOST_COMPONENTS python27)
+     endif()
+   else()
+-    list(APPEND BOOST_COMPONENTS python38)
++    string(REGEX MATCH "^[0-9]+\\.[0-9]+" PYTHON_VERSION_MAJOR_MINOR "${PYTHONLIBS_VERSION_STRING}")
++    string(REPLACE "." "" PYTHON_VERSION_SUFFIX "${PYTHON_VERSION_MAJOR_MINOR}")
++    list(APPEND BOOST_COMPONENTS "python${PYTHON_VERSION_SUFFIX}")
+   endif()
+   find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS}) 
+ 
+diff --git a/Schweizer-Messer/sm_random/CMakeLists.txt b/Schweizer-Messer/sm_random/CMakeLists.txt
+index 145775e..d06f03a 100644
+--- a/Schweizer-Messer/sm_random/CMakeLists.txt
++++ b/Schweizer-Messer/sm_random/CMakeLists.txt
+@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.0.2)
+ project(sm_random)
+ 
+ find_package(catkin REQUIRED)
+-include_directories(${catkin_INCLUDE_DIRS})
++find_package(Boost REQUIRED)
++include_directories(${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+ 
+ catkin_package(
+   INCLUDE_DIRS include
+diff --git a/aslam_incremental_calibration/incremental_calibration/include/aslam/calibration/algorithms/linalg.h b/aslam_incremental_calibration/incremental_calibration/include/aslam/calibration/algorithms/linalg.h
+index db6d3b7..80398ca 100644
+--- a/aslam_incremental_calibration/incremental_calibration/include/aslam/calibration/algorithms/linalg.h
++++ b/aslam_incremental_calibration/incremental_calibration/include/aslam/calibration/algorithms/linalg.h
+@@ -35,7 +35,7 @@ struct cholmod_dense_struct;
+ typedef cholmod_dense_struct cholmod_dense;
+ struct cholmod_common_struct;
+ typedef cholmod_common_struct cholmod_common;
+-template <typename Entry> struct SuiteSparseQR_factorization;
++#include <SuiteSparseQR.hpp>
+ 
+ namespace aslam {
+   namespace calibration {
+diff --git a/aslam_incremental_calibration/incremental_calibration/include/aslam/calibration/core/LinearSolver.h b/aslam_incremental_calibration/incremental_calibration/include/aslam/calibration/core/LinearSolver.h
+index dbda4c8..4bf5f7a 100644
+--- a/aslam_incremental_calibration/incremental_calibration/include/aslam/calibration/core/LinearSolver.h
++++ b/aslam_incremental_calibration/incremental_calibration/include/aslam/calibration/core/LinearSolver.h
+@@ -38,7 +38,7 @@
+ 
+ #include "aslam/calibration/core/LinearSolverOptions.h"
+ 
+-template <typename Entry> struct SuiteSparseQR_factorization;
++#include <SuiteSparseQR.hpp>
+ 
+ namespace sm {
+ 
+diff --git a/aslam_incremental_calibration/incremental_calibration/src/algorithms/linalg.cpp b/aslam_incremental_calibration/incremental_calibration/src/algorithms/linalg.cpp
+index 71a4158..178a9a8 100644
+--- a/aslam_incremental_calibration/incremental_calibration/src/algorithms/linalg.cpp
++++ b/aslam_incremental_calibration/incremental_calibration/src/algorithms/linalg.cpp
+@@ -26,7 +26,10 @@
+ 
+ #include <cholmod.h>
+ #include <SuiteSparseQR.hpp>
+-#include <spqr.hpp>
++
++// Forward declare spqr_maxcolnorm since it is an internal SuiteSparse function not exposed in public headers
++template <typename Entry>
++double spqr_maxcolnorm(cholmod_sparse* A, cholmod_common* cc);
+ 
+ #include "aslam/calibration/exceptions/OutOfBoundException.h"
+ #include "aslam/calibration/exceptions/InvalidOperationException.h"
+diff --git a/aslam_nonparametric_estimation/bsplines_python/src/BSplinePython.cpp b/aslam_nonparametric_estimation/bsplines_python/src/BSplinePython.cpp
+index 32d9a92..50d5db6 100644
+--- a/aslam_nonparametric_estimation/bsplines_python/src/BSplinePython.cpp
++++ b/aslam_nonparametric_estimation/bsplines_python/src/BSplinePython.cpp
+@@ -4,6 +4,7 @@
+ 
+ using namespace bsplines;
+ using namespace boost::python;
++using boost::placeholders::_1;
+ 
+   // Function wrappers turn std::pairs into tuples.
+ boost::python::tuple timeInterval1(const bsplines::BSpline * bs)
+-- 
+2.34.1
+

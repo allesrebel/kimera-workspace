@@ -55,9 +55,14 @@ apply_patches_for_submodule() {
     local sub_path="${REPO_ROOT}/src/${subdir}"
     [ -e "${sub_path}/.git" ] || return 0
 
-    # Detect already-applied: HEAD's tree should differ from the recorded
-    # gitlink if patches are already applied. We use a marker file instead.
     local marker="${sub_path}/.kimera_workspace_patches_applied"
+    # If the submodule is at the clean upstream SHA, then patches are not applied
+    # regardless of whether the marker file exists (it might be stale).
+    local registered_sha=$(git rev-parse ":src/${subdir}" 2>/dev/null || true)
+    local current_sha=$(cd "${sub_path}" && git rev-parse HEAD 2>/dev/null || true)
+    if [ -n "${registered_sha}" ] && [ "${registered_sha}" = "${current_sha}" ]; then
+        rm -f "${marker}"
+    fi
     if [ -f "${marker}" ]; then
         echo "  ${subdir}: patches already applied (marker present), skipping"
         return 0
@@ -72,6 +77,7 @@ apply_patches_for_submodule() {
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 echo "Applying workspace-local patches to submodules..."
+apply_patches_for_submodule Kimera-RPGO
 apply_patches_for_submodule Kimera-VIO
 apply_patches_for_submodule Kimera-VIO-ROS
 apply_patches_for_submodule voxblox
@@ -109,6 +115,14 @@ if command -v vcs >/dev/null 2>&1; then
         # duplicate-package-named dirs.
         touch src/vision_opencv/opencv_tests/CATKIN_IGNORE
         touch src/vision_opencv/vision_opencv/CATKIN_IGNORE
+    fi
+
+    # Exclude duplicate packages in kalibr that are already present at the top-level workspace
+    if [ -d src/kalibr/catkin_simple ]; then
+        touch src/kalibr/catkin_simple/CATKIN_IGNORE
+    fi
+    if [ -d src/kalibr/Schweizer-Messer/numpy_eigen ]; then
+        touch src/kalibr/Schweizer-Messer/numpy_eigen/CATKIN_IGNORE
     fi
 else
     cat <<'EOF'

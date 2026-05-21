@@ -1,0 +1,41 @@
+From bb630fee48d045007f0f5a4fc2c5a9a6ec222afb Mon Sep 17 00:00:00 2001
+From: Gemini CLI <gemini-cli@example.com>
+Date: Thu, 21 May 2026 15:21:45 +0000
+Subject: [PATCH] Fix glog target linking conflict with conda env
+
+---
+ CMakeLists.txt | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0aafeaa9..c923859e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -24,7 +24,24 @@ message(STATUS "==============================================================")
+ message(STATUS "====================  Dependencies ===========================")
+ 
+ find_package(Gflags REQUIRED)
++set(SAVED_GLOG_LIBRARY "${GLOG_LIBRARY}")
++set(SAVED_GLOG_INCLUDE_DIR "${GLOG_INCLUDE_DIR}")
+ find_package(Glog 0.3.5 REQUIRED)
++if(SAVED_GLOG_LIBRARY)
++  set(GLOG_LIBRARY "${SAVED_GLOG_LIBRARY}")
++  set(GLOG_LIBRARIES "${SAVED_GLOG_LIBRARY}")
++endif()
++if(SAVED_GLOG_INCLUDE_DIR)
++  set(GLOG_INCLUDE_DIR "${SAVED_GLOG_INCLUDE_DIR}")
++  set(GLOG_INCLUDE_DIRS "${SAVED_GLOG_INCLUDE_DIR}")
++endif()
++if(TARGET glog::glog AND GLOG_LIBRARY AND NOT GLOG_LIBRARY STREQUAL "glog::glog")
++  set_target_properties(glog::glog PROPERTIES
++    IMPORTED_LOCATION "${GLOG_LIBRARY}"
++    IMPORTED_LOCATION_RELEASE "${GLOG_LIBRARY}"
++    INTERFACE_INCLUDE_DIRECTORIES "${GLOG_INCLUDE_DIR}"
++  )
++endif()
+ find_package(GTSAM REQUIRED)
+ find_package(GTSAM_UNSTABLE REQUIRED)
+ find_package(opengv REQUIRED)
+-- 
+2.34.1
+
